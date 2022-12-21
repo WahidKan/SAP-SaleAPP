@@ -52,7 +52,7 @@ namespace SAP_ARInvoice.Controllers
                     var userResponse = await CheckOrderExist(singleInvoice.OrderCode);
                     if (!userResponse)
                     {
-                        _logger.LogError("Unable to Create New User");
+                        _logger.LogError("Sale Order already exists");
                         return "SAP B1 Background service";
                     }
 
