@@ -114,7 +114,7 @@ namespace SAP_ARInvoice.Connection
             return dataModel;
         }
 
-        public async Task<List<T>> ArInvoice_API<T>( RequestEnum requestEnum, string baseURI, IDictionary<string, string> parameters,string token)
+        public async Task<List<T>> ArInvoice_API<T>(RequestEnum requestEnum, string baseURI, IDictionary<string, string> parameters,string token)
         {
             List<T> modelResponse = new List<T>();
             HttpClient client = new HttpClient();

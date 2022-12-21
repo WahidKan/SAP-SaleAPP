@@ -4,6 +4,7 @@ using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
 using SAP_ARInvoice.Connection;
 using SAP_ARInvoice.Model.DTO;
+using SAP_ARInvoice.Model.Enum;
 using SAP_ARInvoice.Model.Setting;
 using SAPbobsCOM;
 using System;
@@ -17,7 +18,7 @@ namespace SAP_ARInvoice.Controllers
 {
     [ApiController]
     [Route("[controller]")]
-    public class SalesOrderController 
+    public class SalesOrderController
     {
         private readonly ILogger _logger;
         private readonly SAP_Connection connection;
@@ -38,11 +39,14 @@ namespace SAP_ARInvoice.Controllers
             var parameters = new Dictionary<string, string>();
             parameters.Add("Keys", "Values");
             var baseURI = "http://";
+            var Token = "";
+
             if (connection.Connect() == 0)
             {
                 Documents oSO = null;
                 parameters.Add("@Date", DateTime.Now.ToString("yyyy/MM/dd"));
-                var invoices = await connection.ArInvoice_API<SalesOrder>(baseURI, parameters);
+                var invoices = await connection.ArInvoice_API<SalesOrder>(RequestEnum.POST, baseURI, parameters, Token);
+
                 foreach (var singleInvoice in invoices)
                 {
                     var userResponse = await CheckOrderExist(singleInvoice.OrderCode);
@@ -85,7 +89,7 @@ namespace SAP_ARInvoice.Controllers
             bool output = false;
             Recordset recordSet = connection.GetCompany().GetBusinessObject(BoObjectTypes.BoRecordset);
             Documents oSO = await connection.GetCompany().GetBusinessObject(BoObjectTypes.oOrders);
-            recordSet.DoQuery($"SELECT * FROM \"ORDR\" WHERE \"ORDERCODE\"='{OrderCode}'");
+            recordSet.DoQuery($"SELECT * FROM \"ORDR\" WHERE \"DOCNUM\"='{OrderCode}'");
             if (recordSet.RecordCount == 0)
             {
                 output = false;
