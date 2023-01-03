@@ -28,7 +28,6 @@ namespace SAP_ARInvoice.Controllers
         [HttpGet]
         public async Task<string> GetAsync()
         {
- 
             if (connection.Connect() == 0)
             {
                 Documents invoice = null;
@@ -133,7 +132,6 @@ namespace SAP_ARInvoice.Controllers
                     if (invoice.Add() == 0)
                     {
                         Console.WriteLine("Success:Record added successfully");
-
                     }
                     else
                     {
@@ -150,20 +148,18 @@ namespace SAP_ARInvoice.Controllers
             }
             return "SAP B1 Background service";
         }
-
         private async Task<List<Orders>> InvoiceMapper(List<DataModel> data) {
 
             List<Orders> orders = new List<Orders>();
-            List<DataModel> resp = data.Select(x=> new {x.CustName,x.OrderCode}).Distinct().Select(x => data.FirstOrDefault(r => r.CustName == x.CustName && r.OrderCode==x.OrderCode)).Distinct().ToList();
-            foreach (var item in resp)
-            {
-               var orderDetail = data.Where(x => x.OrderCode == item.OrderCode && x.CustName == item.CustName).Select(x => new OrderDetail { ItemCode=x.ItemCode,Quantity=int.Parse(x.Quantity) }).Distinct().ToList();
-                orders.Add(new Orders() { CustName= item.CustName,OrderCode=item.OrderCode,OrderDate=item.OrderDate,OrderDetail= orderDetail });
-            }
+            //List<DataModel> resp = data.Select(x=> new {x.CustName,x.OrderCode}).Distinct().Select(x => data.FirstOrDefault(r => r.CustName == x.CustName && r.OrderCode==x.OrderCode)).Distinct().ToList();
+            //foreach (var item in resp)
+            //{
+            //   var orderDetail = data.Where(x => x.OrderCode == item.OrderCode && x.CustName == item.CustName).Select(x => new OrderDetail { ItemCode=x.ItemCode,Quantity=int.Parse(x.Quantity) }).Distinct().ToList();
+            //    orders.Add(new Orders() { CustName= item.CustName,OrderCode=item.OrderCode,OrderDate=item.OrderDate,OrderDetail= orderDetail });
+            //}
 
             return orders;
         }
-
         private async Task<bool> CheckItemExist(List<OrderDetail> orderDetail)
         {
             bool output = false;
@@ -200,7 +196,6 @@ namespace SAP_ARInvoice.Controllers
 
                 }
             }
-
             return output;
         }
 
