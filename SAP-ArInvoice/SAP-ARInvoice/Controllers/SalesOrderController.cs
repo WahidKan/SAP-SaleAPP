@@ -40,61 +40,53 @@ namespace SAP_ARInvoice.Controllers
         [Route("getorderbyapi")]
         public async Task<string> GetAsync()
         {
-            var loginResoponse = AuthUserAsync();
+            var BaseUrl = "https://sap.masoodapp.com/api/auth/login";
+            //var loginResoponse = AuthUserAsync(BaseUrl);
 
             var parameters = new Dictionary<string, string>();
             parameters.Add("Keys", "Values");
             var baseURI = "https://sap.masoodapp.com/api/order/GetSyncOrder";
 
-            if (loginResoponse == null)
+
+            if (connection.Connect() == 0)
             {
-                _logger.LogError("user unable to login!");
-                return "SAP B1 Background service";
+                Documents oSO = null;
+                parameters.Add("@Date", DateTime.Now.ToString("yyyy/MM/dd"));
+                var invoices = await connection.ArInvoice_API<SalesOrder>(RequestEnum.GET, baseURI, parameters, true, BaseUrl);
+
+                foreach (var singleInvoice in invoices)
+                {
+                    var userResponse = await CheckOrderExist(singleInvoice.OrderCode);
+                    if (!userResponse)
+                    {
+                        _logger.LogError("Sale Order already exists");
+                        return "SAP B1 Background service";
+                    }
+
+                    oSO = connection.GetCompany().GetBusinessObject(BoObjectTypes.oOrders);
+
+                    oSO.DocNum = Convert.ToInt32(singleInvoice.OrderCode);
+                    oSO.DocDate = DateTime.Now;
+
+                    foreach (var OrderItem in singleInvoice.OrderItems)
+                    {
+                        oSO.Lines.ItemCode = OrderItem.ItemCode.ToString();
+                        oSO.Lines.Quantity = Convert.ToDouble(OrderItem.Quantity);
+                        oSO.Lines.UnitPrice = Convert.ToDouble(OrderItem.UnitPrice);
+
+                        if (oSO.Add() == 0)
+                        {
+                            Console.WriteLine("Success:Record added successfully");
+                        }
+                        connection.GetCompany().Disconnect();
+                    }
+                }
             }
 
             else
             {
-                if (connection.Connect() == 0)
-                {
-                    Documents oSO = null;
-                    parameters.Add("@Date", DateTime.Now.ToString("yyyy/MM/dd"));
-                    var invoices = await connection.ArInvoice_API<SalesOrder>(RequestEnum.POST, baseURI, parameters, loginResoponse.Result.access_token);
-
-                    foreach (var singleInvoice in invoices)
-                    {
-                        var userResponse = await CheckOrderExist(singleInvoice.OrderCode);
-                        if (!userResponse)
-                        {
-                            _logger.LogError("Sale Order already exists");
-                            return "SAP B1 Background service";
-                        }
-
-                        oSO = connection.GetCompany().GetBusinessObject(BoObjectTypes.oOrders);
-
-                        oSO.DocNum = Convert.ToInt32(singleInvoice.OrderCode);
-                        oSO.DocDate = DateTime.Now;
-
-                        foreach (var OrderItem in singleInvoice.OrderItems)
-                        {
-                            oSO.Lines.ItemCode = OrderItem.ItemCode.ToString();
-                            oSO.Lines.Quantity = Convert.ToDouble(OrderItem.Quantity);
-                            oSO.Lines.UnitPrice = Convert.ToDouble(OrderItem.UnitPrice);
-
-                            if (oSO.Add() == 0)
-                            {
-                                Console.WriteLine("Success:Record added successfully");
-                            }
-                            connection.GetCompany().Disconnect();
-                        }
-                    }
-                }
-
-                else
-                {
-                    Console.WriteLine("Error " + connection.GetErrorCode() + ": " + connection.GetErrorMessage());
-                }
+                Console.WriteLine("Error " + connection.GetErrorCode() + ": " + connection.GetErrorMessage());
             }
-
             return "";
         }
 
@@ -119,7 +111,7 @@ namespace SAP_ARInvoice.Controllers
                     //    return "SAP B1 Background service";
                     //}
                     var userResponse = await CheckOrderExist(singleInvoice.OrderCode);
-                    if (userResponse==true)
+                    if (userResponse == true)
                     {
                         _logger.LogError("Sale Order already exists");
                         return "SAP B1 Background service";
@@ -132,8 +124,8 @@ namespace SAP_ARInvoice.Controllers
                     oSO.CardCode = singleInvoice.CustomerName;
                     oSO.CardName = "Sajjad Khan";
                     oSO.Address = "";
-                    
-                    oSO.DocDueDate =DateTime.Parse(singleInvoice.DocDueDate);
+
+                    oSO.DocDueDate = DateTime.Parse(singleInvoice.DocDueDate);
 
                     foreach (var OrderItem in singleInvoice.OrderItems)
                     {
@@ -142,7 +134,7 @@ namespace SAP_ARInvoice.Controllers
                         oSO.Lines.UnitPrice = Convert.ToDouble(OrderItem.UnitPrice);
                         oSO.Lines.Add();
 
-                     
+
                     }
                     if (oSO.Add() == 0)
                     {
@@ -167,7 +159,7 @@ namespace SAP_ARInvoice.Controllers
         {
             bool output = false;
             Recordset recordSet = connection.GetCompany().GetBusinessObject(BoObjectTypes.BoRecordset);
-            Documents oSO =  connection.GetCompany().GetBusinessObject(BoObjectTypes.oOrders);
+            Documents oSO = connection.GetCompany().GetBusinessObject(BoObjectTypes.oOrders);
             recordSet.DoQuery($"SELECT * FROM \"ORDR\" WHERE \"NumAtCard\"='{OrderCode}'");
             if (recordSet.RecordCount == 0)
             {
@@ -221,49 +213,19 @@ namespace SAP_ARInvoice.Controllers
             return output;
         }
 
-        public async Task<AuthToken> AuthUserAsync()
-        {
-            try
-            {
-                using (var httpClient = new HttpClient())
-                {
-                    using (var request = new HttpRequestMessage(new HttpMethod("POST"), "https://sap.masoodapp.com/api/auth/login"))
-                    {
-                        request.Content = new StringContent("{\n    \"email\": \"sap@masood.com.pk\",\n    \"password\": \"sap@saleapp\"\n}");
-                        request.Content.Headers.ContentType = MediaTypeHeaderValue.Parse("application/json");
 
-                        var response = await httpClient.SendAsync(request);
-                        var token = await response.Content.ReadAsStringAsync();
-                        AuthToken authToken = JsonConvert.DeserializeObject<AuthToken>(token);
-                        if (authToken.status_code == 422)
-                        {
-                            _logger.LogError("Invalid username or password");
-                            return null;
-                        }
-                        else
-                        {
-                            return authToken;
-                        }
-                    }
-                }
-            }
-            catch (Exception)
-            {
-                return null;
-            }
-        }
 
         private async Task<List<SalesOrder>> InvoiceMapper(List<DataModel> data)
         {
 
             List<SalesOrder> SaleOrders = new List<SalesOrder>();
-            List<DataModel> resp = data.Select(x => new { x.CustomerName, x.EmployeeName,x.OrderCode,x.DocDueDate,x.UnitPrice }).Distinct()
-                .Select(x => data.FirstOrDefault(r => r.CustomerName == x.CustomerName && r.OrderCode == x.OrderCode && r.DocDueDate == x.DocDueDate && r.UnitPrice== x.UnitPrice)).Distinct().ToList();
+            List<DataModel> resp = data.Select(x => new { x.CustomerName, x.EmployeeName, x.OrderCode, x.DocDueDate, x.UnitPrice }).Distinct()
+                .Select(x => data.FirstOrDefault(r => r.CustomerName == x.CustomerName && r.OrderCode == x.OrderCode && r.DocDueDate == x.DocDueDate && r.UnitPrice == x.UnitPrice)).Distinct().ToList();
             foreach (var item in resp)
             {
-                var orderItems = data.Where(x => x.OrderCode == item.OrderCode && x.CustomerName == item.CustomerName && x.DocDueDate == item.DocDueDate && x.UnitPrice==item.UnitPrice)
-                    .Select(x => new OrderItem { ItemCode = x.ItemCode, Quantity = x.Quantity,UnitPrice=x.UnitPrice }).Distinct().ToList();
-                SaleOrders.Add(new SalesOrder() { CustomerName = item.CustomerName, OrderCode = item.OrderCode, CreatedDate = item.CreatedDate,DocDueDate=item.DocDueDate, OrderItems = orderItems });
+                var orderItems = data.Where(x => x.OrderCode == item.OrderCode && x.CustomerName == item.CustomerName && x.DocDueDate == item.DocDueDate && x.UnitPrice == item.UnitPrice)
+                    .Select(x => new OrderItem { ItemCode = x.ItemCode, Quantity = x.Quantity, UnitPrice = x.UnitPrice }).Distinct().ToList();
+                SaleOrders.Add(new SalesOrder() { CustomerName = item.CustomerName, OrderCode = item.OrderCode, CreatedDate = item.CreatedDate, DocDueDate = item.DocDueDate, OrderItems = orderItems });
             }
 
             return SaleOrders;
@@ -271,7 +233,7 @@ namespace SAP_ARInvoice.Controllers
 
         public async Task ShopifyAuth()
         {
-    
+
 
         }
 

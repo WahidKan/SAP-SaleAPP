@@ -68,8 +68,12 @@ namespace SAP_ARInvoice.Connection
         public async Task<List<T>> ArInvoice_SP<T>(string SpName, IDictionary<string, string> parameters)
         {
             List<T> dataModel = new List<T>();
+
+
             try
             {
+             
+
                 string ConnectionString = _setting.DbConnection;
                 using (SqlConnection connection = new SqlConnection(ConnectionString))
                 {
@@ -109,15 +113,19 @@ namespace SAP_ARInvoice.Connection
             return dataModel;
         }
 
-        public async Task<List<T>> ArInvoice_API<T>(RequestEnum requestEnum, string baseURI, IDictionary<string, string> parameters, string token)
+        public async Task<List<T>> ArInvoice_API<T>(RequestEnum requestEnum, string baseURI, IDictionary<string, string> parameters, bool IsCallAuth = false, string AuthUri = "")
         {
+            AuthToken Token = new AuthToken();
+            List<T> dataModel = new List<T>();
             List<T> modelResponse = new List<T>();
             HttpClient client = new HttpClient();
-
-            if (token != "")
+            if (IsCallAuth)
             {
-                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+                Token = await AuthUserAsync<AuthToken>(AuthUri);
             }
+          
+             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", Token.access_token);
 
             client.BaseAddress = new Uri(baseURI);
 
@@ -130,7 +138,7 @@ namespace SAP_ARInvoice.Connection
             switch (requestEnum)
             {
                 case RequestEnum.GET:
-                    var result = client.GetAsync("").Result;
+                    var result = client.GetAsync("api/SalesOrder").Result;
                     break;
 
                 case RequestEnum.POST:
@@ -163,6 +171,21 @@ namespace SAP_ARInvoice.Connection
             return modelResponse;
         }
 
-       
+        public async Task<T> AuthUserAsync<T>(string BaseUrl)
+        {
+            using (var httpClient = new HttpClient())
+            {
+                using (var request = new HttpRequestMessage(new HttpMethod("POST"), BaseUrl))
+                {
+                    request.Content = new StringContent("{\n    \"email\": \"sap@masood.com.pk\",\n \"password\": \"sap@saleapp\"\n}");
+                    request.Content.Headers.ContentType = MediaTypeHeaderValue.Parse("application/json");
+
+                    var response = await httpClient.SendAsync(request);
+                    var token = await response.Content.ReadAsStringAsync();
+                    T authToken = JsonConvert.DeserializeObject<T>(token);
+                    return authToken;
+                }
+            }
+        }
     }
 }

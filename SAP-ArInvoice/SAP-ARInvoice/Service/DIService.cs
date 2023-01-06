@@ -6,12 +6,14 @@ using System;
 using System.Net.NetworkInformation;
 using System.Timers;
 using Timer = System.Threading.Timer;
+using SAP_ARInvoice.Controllers;
 
 namespace SAP_ARInvoice.Service
 {
-
+    
     public class DIService : IHostedService, IDisposable
     {
+        public HomeController homeController;
         private Timer timer;
         private readonly ILogger<DIService> logger;
 
@@ -31,7 +33,7 @@ namespace SAP_ARInvoice.Service
         {
             timer = new Timer(o => {
                 //action
-
+                //_ = homeController.GetAsync();
                 logger.LogInformation($"Background Service");
 
             },

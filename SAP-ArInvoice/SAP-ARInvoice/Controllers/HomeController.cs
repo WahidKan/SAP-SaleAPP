@@ -61,6 +61,7 @@ namespace SAP_ARInvoice.Controllers
 
                         invoice.Lines.ItemCode = OrderItem.ItemCode;
                         invoice.Lines.ItemDescription = OrderItem.ItemCode;
+                        
                         //invoice.Lines.WarehouseCode = "05";
                         invoice.Lines.Quantity = OrderItem.Quantity;
                         //Branch
